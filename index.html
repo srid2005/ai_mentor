@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Virtual Interviewer</title>
+  <meta name="description" content="An interactive AI Interviewer that parses your resume, asks contextual technical questions, and transcribes your verbal responses.">
+  
+  <!-- Preconnect and Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+  
+  <!-- CSS Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="app-container">
+    <header>
+      <h1>🤖 AI Virtual Interviewer</h1>
+      <p>Seamless Resume Intelligence & Verbal Interactive Technical Interview</p>
+    </header>
+
+    <!-- Wizard Steps Indicator -->
+    <div class="steps-progress">
+      <div class="step-progress-item active" id="progressStep1">
+        <span class="step-num">1</span>
+        <span class="step-label">Upload Resume</span>
+      </div>
+      <div class="step-progress-line" id="progressLine1"></div>
+      <div class="step-progress-item" id="progressStep2">
+        <span class="step-num">2</span>
+        <span class="step-label">Interview Room</span>
+      </div>
+      <div class="step-progress-line" id="progressLine2"></div>
+      <div class="step-progress-item" id="progressStep3">
+        <span class="step-num">3</span>
+        <span class="step-label">Wrap-up</span>
+      </div>
+    </div>
+
+    <!-- Main Card Container -->
+    <main class="glass-card" id="cardContainer">
+      <!-- Error Notification Banner -->
+      <div class="notification-banner" id="errorBanner">
+        <span class="icon">⚠️</span>
+        <span class="message" id="errorMessage">Error text here.</span>
+        <button class="close-btn" id="closeErrorBtn">&times;</button>
+      </div>
+
+      <!-- ==========================================
+           STEP 1: UPLOAD & PARSE RESUME
+           ========================================== -->
+      <div class="wizard-step" id="stepUpload">
+        <div class="section-intro">
+          <h2>Welcome to your virtual interview</h2>
+          <p>Please upload your resume in PDF format. Our deterministic parsing engine will extract your background to tailor specific technical questions for you.</p>
+        </div>
+
+        <div class="upload-zone" id="uploadZone">
+          <div class="upload-icon">📁</div>
+          <h3>Drag and drop your resume PDF here</h3>
+          <p>or click to browse from files</p>
+          <input type="file" id="resumeFileInput" accept=".pdf" style="display: none;">
+          <span class="file-spec">Only PDF resumes (max 10MB) are accepted.</span>
+        </div>
+
+        <!-- Parsing Status Loader -->
+        <div class="parse-loader hidden" id="parseLoader">
+          <div class="spinner"></div>
+          <div class="loader-text">Analyzing resume structure and extracting text...</div>
+        </div>
+
+        <!-- Resume Details Preview Card -->
+        <div class="resume-preview-card hidden" id="resumePreviewCard">
+          <div class="preview-header">
+            <h3>📝 Extracted Candidate Profile</h3>
+            <span class="badge badge-success">Parsed Successfully</span>
+          </div>
+
+          <div class="preview-grid">
+            <div class="preview-item">
+              <span class="preview-label">Full Name</span>
+              <span class="preview-value" id="candName">-</span>
+            </div>
+            <div class="preview-item">
+              <span class="preview-label">Email Address</span>
+              <span class="preview-value" id="candEmail">-</span>
+            </div>
+            <div class="preview-item">
+              <span class="preview-label">Phone Number</span>
+              <span class="preview-value" id="candPhone">-</span>
+            </div>
+            <div class="preview-item">
+              <span class="preview-label">LinkedIn</span>
+              <span class="preview-value" id="candLinkedin">-</span>
+            </div>
+            <div class="preview-item">
+              <span class="preview-label">GitHub</span>
+              <span class="preview-value" id="candGithub">-</span>
+            </div>
+            <div class="preview-item">
+              <span class="preview-label">Portfolio</span>
+              <span class="preview-value" id="candPortfolio">-</span>
+            </div>
+          </div>
+
+          <div class="preview-skills">
+            <span class="preview-label">Extracted Skills</span>
+            <div class="skills-tags-container" id="candSkills">
+              <!-- Dynamic skills tags -->
+            </div>
+          </div>
+
+          <div class="preview-disclaimer">
+            <p>💡 <em>If some fields are blank, our parser avoided guessing them to protect information accuracy. They will still be covered in the interview dialogue if you mention them.</em></p>
+          </div>
+
+          <div class="actions-row">
+            <button class="btn btn-primary" id="btnStartInterview">
+              🚀 Enter Interview Room & Start
+            </button>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- ==========================================
+           STEP 2: VIRTUAL INTERVIEW ROOM
+           ========================================== -->
+      <div class="wizard-step hidden" id="stepInterview">
+        <!-- Status Panel Grid -->
+        <div class="status-grid">
+          <div class="status-item status-idle" id="micStatusItem">
+            <span class="status-label">Microphone Status</span>
+            <span class="status-value">
+              <span class="indicator-dot"></span>
+              <span id="micStatusText">Idle</span>
+            </span>
+          </div>
+          <div class="status-item status-idle" id="interviewerStatusItem">
+            <span class="status-label">Interviewer Status</span>
+            <span class="status-value">
+              <span class="indicator-dot"></span>
+              <span id="interviewerStatusText">Ready</span>
+            </span>
+          </div>
+          <div class="status-item status-idle" id="listeningStatusItem">
+            <span class="status-label">Listening Status</span>
+            <span class="status-value">
+              <span class="indicator-dot"></span>
+              <span id="listeningStatusText">Idle</span>
+            </span>
+          </div>
+        </div>
+
+        <!-- Chat Arena / Conversational display -->
+        <div class="chat-arena" id="chatArena">
+          <!-- Dynamic conversation bubbles -->
+        </div>
+
+        <div class="interview-workbench">
+          <!-- Left side: Speech and visualizer controls -->
+          <div class="workbench-voice">
+            <div class="visualizer-container" id="visualizerContainer">
+              <div class="pulse-ring"></div>
+              <div class="pulse-ring"></div>
+              <div class="pulse-ring"></div>
+              
+              <div class="mic-pulse-outer" id="micPulseOuter">
+                <button class="mic-button-inner" id="micInteractionBtn" aria-label="Microphone Interaction button">
+                  🎙️
+                </button>
+              </div>
+
+              <div class="sound-waves">
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+              </div>
+            </div>
+
+            <div class="controls-row">
+              <button class="btn btn-primary" id="startBtn">
+                <span class="icon">🎙️</span> Start Speaking
+              </button>
+              <button class="btn btn-danger" id="stopBtn" disabled>
+                <span class="icon">⏹️</span> Stop
+              </button>
+              <button class="btn btn-secondary" id="clearBtn">
+                <span class="icon">🗑️</span> Clear
+              </button>
+            </div>
+            
+            <div class="audio-feedback">
+              <label class="toggle-switch">
+                <input type="checkbox" id="ttsToggle" checked>
+                <span class="toggle-slider"></span>
+              </label>
+              <span class="toggle-label">Speak AI Questions Aloud</span>
+            </div>
+          </div>
+
+          <!-- Right side: Transcript Editor & submission -->
+          <div class="workbench-input">
+            <div class="transcript-header">
+              <span class="transcript-title">
+                Response Review & Edit
+                <span class="live-badge" id="liveBadge">LIVE STT</span>
+              </span>
+            </div>
+            
+            <textarea class="transcript-textarea" id="candidateResponseText" placeholder="Your speech transcription will appear here. Feel free to edit or type directly if needed before submitting..."></textarea>
+            
+            <div class="submit-actions-row">
+              <button class="btn btn-success" id="btnSubmitAnswer" disabled>
+                <span class="icon">📤</span> Submit Answer
+              </button>
+              <button class="btn btn-secondary" id="btnFinishEarly">
+                <span class="icon">🛑</span> End Interview
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- ==========================================
+           STEP 3: WRAP-UP & SUMMARY
+           ========================================== -->
+      <div class="wizard-step hidden" id="stepWrapup">
+        <div class="completion-card">
+          <div class="completion-icon">🏆</div>
+          <h2>Interview Completed!</h2>
+          <p>Thank you for participating. Your technical interview has been captured. You can review your resume highlights and conversation history below.</p>
+        </div>
+
+        <div class="summary-section">
+          <h3>💬 Interview Session Transcript</h3>
+          <div class="final-transcript-log" id="finalTranscriptLog">
+            <!-- Full chat logs -->
+          </div>
+        </div>
+
+        <div class="actions-row central">
+          <button class="btn btn-primary" id="btnRestart">
+            🔄 Start Another Interview
+          </button>
+        </div>
+      </div>
+
+      <!-- Browser Compatibility Overlay -->
+      <div class="unsupported-overlay" id="unsupportedOverlay">
+        <h2>Unsupported Browser</h2>
+        <p>This browser does not support Speech Recognition. Please open this page in a modern Chromium-based browser (Chrome, Edge, Opera) or Safari to use the Speech-to-Text system.</p>
+      </div>
+    </main>
+
+    <footer>
+      <span>AI Virtual Interviewer Project</span>
+      <span>FastAPI Backend</span>
+      <span>Web Speech API & Gemini Intel</span>
+    </footer>
+  </div>
+
+  <!-- JavaScript logic -->
+  <script src="script.js"></script>
+</body>
+</html>
