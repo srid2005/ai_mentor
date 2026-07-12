@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI HR Interviewer</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #1a1a1e;
+      overflow: hidden;
+      font-family: -apple-system, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    /* ── Transcript overlay ─────────────────────────────────────────────── */
+    #transcript-overlay {
+      position: fixed;
+      bottom: 128px;
+      left: 50%;
+      transform: translateX(-50%);
+      max-width: 640px;
+      width: 88%;
+      background: rgba(0, 0, 0, 0.58);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 22px;
+      padding: 12px 24px;
+      font-size: 14.5px;
+      line-height: 1.55;
+      text-align: center;
+      color: #fff;
+      z-index: 200;
+      display: none;
+      transition: opacity 0.4s ease;
+      pointer-events: none;
+    }
+
+    /* ── Wave bar (bottom dock) ─────────────────────────────────────────── */
+    #wave-bar {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      height: 115px;
+      background: rgba(10, 10, 14, 0.90);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 44px;
+      z-index: 100;
+    }
+
+    /* ── Wave sections (left = user, right = avatar) ────────────────────── */
+    .wave-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 7px;
+      width: 240px;
+    }
+
+    .wave-canvas {
+      display: block;
+      /* Canvas draws at native 220×58, CSS scales to fit */
+      width: 220px;
+      height: 58px;
+      border-radius: 6px;
+    }
+
+    .wave-label {
+      font-size: 10px;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.30);
+    }
+
+    /* ── Center panel ───────────────────────────────────────────────────── */
+    #center-panel {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 9px;
+      flex-shrink: 0;
+    }
+
+    #mic-btn {
+      width: 54px;
+      height: 54px;
+      border-radius: 50%;
+      border: 1.5px solid rgba(255, 255, 255, 0.16);
+      background: rgba(255, 255, 255, 0.07);
+      color: white;
+      font-size: 21px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+      outline: none;
+      user-select: none;
+      line-height: 1;
+    }
+
+    #mic-btn:hover {
+      background: rgba(255,255,255,0.12);
+      border-color: rgba(255,255,255,0.28);
+    }
+
+    /* Listening – red pulse */
+    #mic-btn.listening {
+      background: rgba(220, 50, 50, 0.72);
+      border-color: #e04040;
+      box-shadow: 0 0 0 0 rgba(220, 50, 50, 0.55);
+      animation: redPulse 1.3s ease-in-out infinite;
+    }
+
+    @keyframes redPulse {
+      0%,100% { box-shadow: 0 0 0 0   rgba(220, 50, 50, 0.55); }
+      50%      { box-shadow: 0 0 0 9px rgba(220, 50, 50, 0);    }
+    }
+
+    /* Processing – amber, no click */
+    #mic-btn.processing {
+      background: rgba(190, 130, 0, 0.55);
+      border-color: #c8a000;
+      cursor: not-allowed;
+    }
+
+    /* Avatar speaking – blue glow */
+    #mic-btn.speaking {
+      background: rgba(45, 115, 210, 0.62);
+      border-color: #4a9eff;
+      box-shadow: 0 0 18px rgba(74, 158, 255, 0.35);
+    }
+
+    #status-text {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.38);
+      letter-spacing: 0.4px;
+      white-space: nowrap;
+      text-align: center;
+    }
+  </style>
+
+  <!-- ── p5.js avatar scripts (order matters) ── -->
+  <script src="main.js.js"></script>
+  <script src="control.js.js"></script>
+  <script src="targetGroup.js.js"></script>
+  <script src="blendMesh.js.js"></script>
+  <script src="emotions.js.js"></script>
+  <script src="emotionController.js.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/p5@v1.3.1/lib/p5.js"></script>
+
+  <!-- ── WS / STT / TTS / Wave ── -->
+  <script src="wsClient.js.js"></script>
+</head>
+<body>
+
+  <!-- Floating caption above the wave bar -->
+  <div id="transcript-overlay"></div>
+
+  <!-- Bottom dock -->
+  <div id="wave-bar">
+
+    <!-- Left: user microphone wave -->
+    <div class="wave-section">
+      <canvas id="user-wave" class="wave-canvas" width="220" height="58"></canvas>
+      <span class="wave-label">You</span>
+    </div>
+
+    <!-- Center: mic button + status -->
+    <div id="center-panel">
+      <button id="mic-btn" aria-label="Toggle microphone">🎤</button>
+      <div id="status-text">Connecting…</div>
+    </div>
+
+    <!-- Right: avatar speech wave -->
+    <div class="wave-section">
+      <canvas id="avatar-wave" class="wave-canvas" width="220" height="58"></canvas>
+      <span class="wave-label">Interviewer</span>
+    </div>
+
+  </div>
+</body>
+</html>
